@@ -1,0 +1,1 @@
+# friday/world package

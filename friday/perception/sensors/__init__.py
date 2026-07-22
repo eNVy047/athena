@@ -1,0 +1,1 @@
+# friday/perception/sensors package

@@ -1,0 +1,41 @@
+[project]
+name = "friday"
+version = "0.1.0"
+description = "Friday — A Tony Stark-inspired MCP server"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp",
+    "httpx",
+    "python-dotenv",
+    "mem0ai",
+    "opencv-python",
+    "mss",
+    "sounddevice",
+    "watchdog",
+    "pyperclip",
+    "psutil",
+    "easyocr",
+    "playwright",
+    "pyautogui",
+    "PySide6",
+    "qasync",
+]
+
+
+[project.scripts]
+friday = "server:main"
+friday-desktop = "friday.apps.desktop.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["server.py"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
