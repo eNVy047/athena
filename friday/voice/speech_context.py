@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class SpeechContext:
     """Contextual information for a voice interaction."""
-    session_id: str
+    session_id: str = ""
     user_id: Optional[str] = None
     language: str = "en-US"
     voice_preferences: Dict[str, Any] = field(default_factory=dict)

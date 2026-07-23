@@ -173,4 +173,23 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/python
+# F.R.I.D.A.Y Runtime & Data Directories
+friday_data/
+runtime_state_store.json
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / System
+.DS_Store
+Thumbs.db
+
+# IDEs / Editors
+.vscode/
+.idea/
+
+# Environment local overrides
+.env.local
+.env.*.local
+
+# End of .gitignore

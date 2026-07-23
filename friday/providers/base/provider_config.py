@@ -28,6 +28,11 @@ class ProviderConfig:
             "DEEPGRAM_API_KEY": os.getenv("DEEPGRAM_API_KEY", ""),
             "MEM0_API_KEY": os.getenv("MEM0_API_KEY", ""),
             "OLLAMA_HOST": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+            "SARVAM_API_KEY": os.getenv("SARVAM_API_KEY", ""),
+            "SARVAM_STT_MODEL": os.getenv("SARVAM_STT_MODEL", "saarika:v2"),
+            "SARVAM_TTS_MODEL": os.getenv("SARVAM_TTS_MODEL", "bulbul:v1"),
+            "SARVAM_LANGUAGE": os.getenv("SARVAM_LANGUAGE", "hi-IN"),
+            "SARVAM_TTS_SPEAKER": os.getenv("SARVAM_TTS_SPEAKER", "meera"),
             
             # Additional keys
             "SERPER_API_KEY": os.getenv("SERPER_API_KEY", ""),

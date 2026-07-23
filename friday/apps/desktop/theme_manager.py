@@ -3,8 +3,8 @@ from PySide6.QtCore import QObject, Property, Signal
 class ThemeManager(QObject):
     themeChanged = Signal()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self._is_dark_mode = True
         
     @Property(bool, notify=themeChanged)

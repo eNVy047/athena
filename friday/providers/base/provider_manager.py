@@ -68,3 +68,67 @@ class ProviderManager:
                 provider.health_tracker.record_call(success=False, latency_ms=0.0, error_msg=str(e))
 
         raise RuntimeError(f"All providers in fallback chain for category '{category}' failed. Last error: {last_error}")
+
+    async def execute_with_fallback_stream(
+        self,
+        messages: list,
+        stream_callback=None,
+    ) -> str:
+        """
+        Stream LLM response tokens through the fallback chain.
+
+        Calls `chat_stream(messages)` on the first connected LLM provider.
+        Each token chunk is passed to `stream_callback(token)` immediately.
+        Returns the full accumulated response string when done.
+        Falls back to non-streaming `chat()` if no stream is available.
+        """
+        primary_name = self.config.get("LLM_PROVIDER", "")
+        if not primary_name:
+            providers = self.registry.list_providers("llm")
+            if not providers:
+                raise RuntimeError("No LLM providers registered.")
+            primary_name = providers[0].metadata.name
+
+        chain = self.registry.get_fallback_chain("llm", primary_name)
+        if not chain:
+            raise RuntimeError("No LLM providers in fallback chain.")
+
+        last_error = None
+        for provider in chain:
+            try:
+                if not provider.is_connected:
+                    await provider.initialize()
+                    await provider.connect()
+
+                # Prefer streaming
+                if hasattr(provider, "chat_stream"):
+                    gen = await provider.chat_stream(messages)
+                    accumulated = []
+                    async for token in gen:
+                        accumulated.append(token)
+                        if stream_callback:
+                            stream_callback(token)
+                    full = "".join(accumulated)
+                    provider.health_tracker.record_call(success=True, latency_ms=0.0)
+                    return full
+
+                # Fallback: non-streaming
+                from friday.providers.llm.base import LLMMessage
+                result = await provider.chat(messages=messages)
+                full = result.content.strip()
+                if stream_callback:
+                    stream_callback(full)
+                return full
+
+            except Exception as exc:
+                import logging as _log
+                _log.getLogger(__name__).warning(
+                    "Provider llm/%s failed during stream: %s. Trying fallback…",
+                    provider.metadata.name, exc,
+                )
+                last_error = exc
+
+        raise RuntimeError(
+            f"All LLM providers in fallback chain failed. Last error: {last_error}"
+        )
+

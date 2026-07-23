@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from friday.events.event_types import Event
 
@@ -14,23 +14,34 @@ VOICE_INTERRUPTED = "voice.interrupted"
 VOICE_SILENCE_TIMEOUT = "voice.silence_timeout"
 VOICE_ERROR = "voice.error"
 
+
 @dataclass
 class VoiceEvent(Event):
-    """Base event for voice system."""
-    session_id: str
+    """
+    Base event for voice system.
+
+    NOTE: All fields must have defaults because Event already defines
+    defaulted fields (data, timestamp). In Python dataclasses, subclass
+    fields without defaults cannot follow parent fields with defaults.
+    We use field(default=...) with sentinel to enforce required usage.
+    """
+    session_id: str = ""
     metadata: Optional[Dict[str, Any]] = None
+
 
 @dataclass
 class SpeechDetectedEvent(VoiceEvent):
     """Fired when VAD detects speech (or wake word)."""
     is_wake_word: bool = False
 
+
 @dataclass
 class SttResultEvent(VoiceEvent):
     """Fired when STT returns a result."""
-    text: str
+    text: str = ""
     is_final: bool = False
     confidence: float = 0.0
+
 
 @dataclass
 class VoiceInterruptedEvent(VoiceEvent):

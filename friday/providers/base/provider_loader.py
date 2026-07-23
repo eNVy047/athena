@@ -71,7 +71,13 @@ class ProviderLoader:
         except Exception as e:
             logger.debug(f"Failed to register Ollama Vision Provider: {e}")
 
-        # 3. STT Providers
+        # 3. STT Providers — Sarvam first (primary Indian language ASR)
+        try:
+            from friday.providers.sarvam.sarvam_stt import SarvamSttProvider
+            registry.register(SarvamSttProvider(config))
+        except Exception as e:
+            logger.debug(f"Failed to register Sarvam STT Provider: {e}")
+
         try:
             from friday.providers.stt.deepgram import DeepgramSttProvider
             registry.register(DeepgramSttProvider(config))
@@ -90,7 +96,13 @@ class ProviderLoader:
         except Exception as e:
             logger.debug(f"Failed to register Azure STT Provider: {e}")
 
-        # 4. TTS Providers
+        # 4. TTS Providers — Sarvam first (primary Indian language TTS)
+        try:
+            from friday.providers.sarvam.sarvam_tts import SarvamTtsProvider
+            registry.register(SarvamTtsProvider(config))
+        except Exception as e:
+            logger.debug(f"Failed to register Sarvam TTS Provider: {e}")
+
         try:
             from friday.providers.tts.deepgram import DeepgramTtsProvider
             registry.register(DeepgramTtsProvider(config))

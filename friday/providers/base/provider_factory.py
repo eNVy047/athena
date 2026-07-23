@@ -19,8 +19,8 @@ class ProviderFactory:
         # Default LLM fallbacks
         registry.set_fallbacks("llm", ["openai", "gemini", "anthropic", "groq", "openrouter", "ollama"])
         registry.set_fallbacks("vision", ["openai", "gemini", "openrouter", "ollama"])
-        registry.set_fallbacks("stt", ["deepgram", "whisper", "azure"])
-        registry.set_fallbacks("tts", ["deepgram", "elevenlabs", "openai"])
+        registry.set_fallbacks("stt", ["sarvam", "deepgram", "whisper", "azure"])
+        registry.set_fallbacks("tts", ["sarvam", "elevenlabs", "openai", "deepgram"])
         registry.set_fallbacks("ocr", ["easyocr", "paddleocr"])
         registry.set_fallbacks("embedding", ["openai", "voyageai", "jina", "cohere"])
         registry.set_fallbacks("storage", ["sqlite", "redis"])

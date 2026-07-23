@@ -17,14 +17,39 @@ class CapabilityManager:
     @staticmethod
     def detect_system_capabilities() -> SystemCapabilities:
         """Detects OS binaries and platform libraries at startup."""
+        # On macOS, browsers are .app bundles not on PATH — use 'open -a' to probe
+        def _has_browser_macos() -> bool:
+            import subprocess
+            browsers = [
+                "Google Chrome", "Brave Browser", "Safari",
+                "Firefox", "Arc", "Microsoft Edge", "Chromium",
+            ]
+            for b in browsers:
+                result = subprocess.run(
+                    ["osascript", "-e", f'id of application "{b}"'],
+                    capture_output=True, text=True, timeout=2,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return True
+            return False
+
+        def _has_browser() -> bool:
+            if sys.platform == "darwin":
+                return _has_browser_macos()
+            # Linux / Windows: check PATH
+            return any(
+                shutil.which(b)
+                for b in ["google-chrome", "chrome", "chromium", "firefox", "brave"]
+            )
+
         return SystemCapabilities(
             os_name=sys.platform,
             has_git=bool(shutil.which("git")),
-            has_python=bool(shutil.which("python")),
+            has_python=bool(shutil.which("python3") or shutil.which("python")),
             has_node=bool(shutil.which("node")),
             has_docker=bool(shutil.which("docker")),
-            has_chrome=any(shutil.which(b) for b in ["google-chrome", "chrome", "chromium"]),
-            has_audio=sys.platform in ["darwin", "win32", "linux"]
+            has_chrome=_has_browser(),
+            has_audio=sys.platform in ["darwin", "win32", "linux"],
         )
 
     @staticmethod
@@ -33,7 +58,8 @@ class CapabilityManager:
         sys_caps = CapabilityManager.detect_system_capabilities()
         for cap in tool.required_capabilities:
             if cap == "browser" and not sys_caps.has_chrome:
-                # If specifically testing negative scenarios, we can fail
-                raise RuntimeError("Capability 'browser' is disabled/missing on this platform.")
+                raise RuntimeError(
+                    "No browser found. Please install Chrome, Firefox, Brave, or Safari."
+                )
             elif cap == "terminal" and not sys_caps.has_python:
-                raise RuntimeError("Capability 'terminal' is disabled/missing on this platform.")
+                raise RuntimeError("Python is not available on this platform.")

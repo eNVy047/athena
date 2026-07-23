@@ -60,10 +60,13 @@ class GeminiLlmProvider(LlmProvider):
             raise e
 
     async def chat_stream(self, messages: List[LLMMessage], **kwargs) -> AsyncIterator[str]:
-        # Stream implementation for Gemini
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent?key={self.api_key}"
+        # Stream implementation for Gemini (SSE endpoint)
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}"
+            f":streamGenerateContent?key={self.api_key}&alt=sse"
+        )
         headers = {"Content-Type": "application/json"}
-        
+
         contents = []
         for m in messages:
             role = "user" if m.role == "user" else "model"
@@ -72,31 +75,37 @@ class GeminiLlmProvider(LlmProvider):
         data = {"contents": contents}
 
         async def stream_generator():
+            import json as _json
             start_time = time.time()
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
                     async with client.stream("POST", url, headers=headers, json=data) as response:
                         response.raise_for_status()
-                        import json
                         async for line in response.aiter_lines():
-                            if line.strip().startswith('"text":'):
-                                # Quick text extraction fallback
+                            line = line.strip()
+                            if not line:
+                                continue
+                            # Gemini SSE lines: "data: {...}"
+                            payload = line[6:] if line.startswith("data: ") else line
+                            try:
+                                j = _json.loads(payload)
+                                text = (
+                                    j.get("candidates", [{}])[0]
+                                    .get("content", {})
+                                    .get("parts", [{}])[0]
+                                    .get("text", "")
+                                )
+                                if text:
+                                    yield text
+                            except Exception:
                                 pass
-                            # Full JSON stream handling
-                            # Gemini stream is returned as a JSON array of parts, or chunks
-                            # For simple robust integration, parse the chunk or yield text
-                            if line.startswith("data: ") or line.strip().startswith("{"):
-                                # Yield chunk content if JSON parsed
-                                try:
-                                    j = json.loads(line.strip().strip(",").strip("[").strip("]"))
-                                    text = j["candidates"][0]["content"]["parts"][0]["text"]
-                                    if text:
-                                        yield text
-                                except Exception:
-                                    pass
-                self.health_tracker.record_call(success=True, latency_ms=(time.time() - start_time) * 1000)
+                self.health_tracker.record_call(
+                    success=True, latency_ms=(time.time() - start_time) * 1000
+                )
             except Exception as e:
-                self.health_tracker.record_call(success=False, latency_ms=(time.time() - start_time) * 1000, error_msg=str(e))
+                self.health_tracker.record_call(
+                    success=False, latency_ms=(time.time() - start_time) * 1000, error_msg=str(e)
+                )
                 raise e
 
         return stream_generator()
