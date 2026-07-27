@@ -43,6 +43,8 @@ class SignalBridge(QObject):
     thinkingUpdate      = Signal(str)         # live step ("Thinking…", "Planning…", "Done ✓")
     voiceStatusChanged  = Signal(str)         # voice status
     voiceTranscript     = Signal(str, str)    # user_text, friday_response
+    voiceTranscriptUpdate = Signal(str, str)  # status, transcript
+    liveResponseStart   = Signal(str)         # sender
     errorOccurred       = Signal(str)         # error description
     providerInfoChanged = Signal()            # trigger provider dashboard refresh
     behaviorsReady      = Signal(list)        # behavior list for BehaviorLearning.qml
@@ -116,6 +118,13 @@ class SignalBridge(QObject):
             self.statusChanged.emit("Cancelled")
             self.thinkingUpdate.emit("Cancelled — ready for next request.")
             logger.info("[Bridge] Request cancelled by user.")
+            
+        if self.voice_manager:
+            asyncio.create_task(self.voice_manager.stop())
+            self.voiceStatusChanged.emit("Ready")
+            if self.desktop_state:
+                from friday.apps.desktop.desktop_state import VoiceState
+                self.desktop_state.set_voice_state(VoiceState.IDLE)
 
     # ── Behavior Learning API ─────────────────────────────────────────────
 
@@ -165,8 +174,7 @@ class SignalBridge(QObject):
 
     async def _start_voice(self) -> None:
         try:
-            from friday.voice.speech_state import VoiceMode
-            await self.voice_manager.start(mode=VoiceMode.PUSH_TO_TALK)
+            await self.voice_manager.start_recording()
         except Exception as exc:
             logger.error("[Bridge] Voice start failed: %s", exc)
             self.voiceStatusChanged.emit("Voice Error")
@@ -176,7 +184,6 @@ class SignalBridge(QObject):
     def stopVoice(self) -> None:
         """Called from QML to stop voice recording (push-to-talk end)."""
         logger.info("[Bridge] Voice stop requested.")
-        self.voiceStatusChanged.emit("Processing...")
         if self.desktop_state:
             from friday.apps.desktop.desktop_state import VoiceState
             self.desktop_state.set_voice_state(VoiceState.PROCESSING)
@@ -186,8 +193,7 @@ class SignalBridge(QObject):
 
     async def _stop_voice(self) -> None:
         try:
-            await self.voice_manager.stop()
-            self.voiceStatusChanged.emit("Ready")
+            await self.voice_manager.stop_recording()
             if self.desktop_state:
                 from friday.apps.desktop.desktop_state import VoiceState
                 self.desktop_state.set_voice_state(VoiceState.IDLE)
@@ -198,10 +204,16 @@ class SignalBridge(QObject):
     async def on_voice_response(self, user_text: str, friday_response: str) -> None:
         """
         Callback invoked by SpeechPipeline when a voice command completes.
-        Emits the transcript and response to QML.
         """
         logger.info("[Bridge] Voice response ready.")
         self.voiceTranscript.emit(user_text, friday_response)
-        self.responseReady.emit("You (voice)", user_text)
-        self.responseReady.emit("Friday", friday_response)
-        self.voiceStatusChanged.emit("Listening...")
+        self.voiceStatusChanged.emit("Ready")
+        
+    def emit_voice_transcript_update(self, status: str, transcript: str = "") -> None:
+        self.voiceTranscriptUpdate.emit(status, transcript)
+
+    def emit_live_response_start(self, sender: str) -> None:
+        self.liveResponseStart.emit(sender)
+
+    def emit_token_ready(self, token: str) -> None:
+        self.tokenReady.emit(token)

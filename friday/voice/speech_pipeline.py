@@ -43,7 +43,9 @@ class SpeechPipeline:
         self.wake_word = WakeWordDetector()
         self.audio_router = AudioRouter()
         self.conversation_manager = VoiceConversationManager(mode=VoiceMode.CONTINUOUS)
-
+        self.ui_callbacks = {}
+        self._ptt_buffer = bytearray()
+        self._is_recording_ptt = False
         self._is_running = False
 
     async def start(self) -> None:
@@ -61,6 +63,26 @@ class SpeechPipeline:
         await self.microphone.stop()
         await self.speaker.stop()
         logger.info("[SpeechPipeline] Stopped.")
+
+    def start_ptt_recording(self) -> None:
+        if self.conversation_manager.state != SpeechState.IDLE:
+            return
+        logger.info("[SpeechPipeline] PTT Recording started.")
+        self._ptt_buffer.clear()
+        self._is_recording_ptt = True
+        self.conversation_manager.set_state(SpeechState.LISTENING)
+        if "transcript_update" in self.ui_callbacks:
+            self.ui_callbacks["transcript_update"]("Listening", "")
+
+    def stop_ptt_recording(self) -> None:
+        if not self._is_recording_ptt:
+            return
+        logger.info("[SpeechPipeline] PTT Recording stopped.")
+        self._is_recording_ptt = False
+        self.conversation_manager.set_state(SpeechState.PROCESSING)
+        audio_data = bytes(self._ptt_buffer)
+        self._ptt_buffer.clear()
+        asyncio.create_task(self._handle_command(audio_data))
 
     async def _process_microphone_stream(self) -> None:
         """Main audio processing loop."""
@@ -81,6 +103,11 @@ class SpeechPipeline:
                 chunk, self.microphone.sample_rate, self.microphone.channels
             )
 
+            if self.conversation_manager.mode == VoiceMode.PUSH_TO_TALK:
+                if self._is_recording_ptt:
+                    self._ptt_buffer.extend(processed_chunk)
+                continue
+
             # CONTINUOUS mode: check for wake word before entering LISTENING
             if (
                 self.conversation_manager.mode == VoiceMode.CONTINUOUS
@@ -94,9 +121,6 @@ class SpeechPipeline:
                     buffer.clear()
                     try:
                         text = await self.stt.speech_to_text(audio_data)
-                        if text:
-                            print(text.strip())
-                        
                         if text and self.wake_word.detect(text):
                             logger.info("[SpeechPipeline] Wake word detected. Listening...")
                             self.conversation_manager.set_state(SpeechState.LISTENING)
@@ -116,29 +140,44 @@ class SpeechPipeline:
     async def _handle_command(self, audio_data: bytes) -> None:
         """STT → Agent → TTS pipeline for a single voice command."""
         try:
+            if "voice_status" in self.ui_callbacks:
+                self.ui_callbacks["voice_status"]("Recognizing...")
+            if "transcript_update" in self.ui_callbacks:
+                self.ui_callbacks["transcript_update"]("Recognizing", "")
+
             # 1. Speech-to-Text
             text = await self.stt.speech_to_text(audio_data)
             logger.info("[SpeechPipeline] STT transcript: %r", text)
 
             if not text or not text.strip():
                 self.conversation_manager.set_state(SpeechState.IDLE)
+                if "voice_status" in self.ui_callbacks:
+                    self.ui_callbacks["voice_status"]("Ready")
                 return
 
-            print(text.strip())
-            
-            # Skip everything else for STT testing
-            self.conversation_manager.set_state(SpeechState.IDLE)
-            return
+            if "transcript_update" in self.ui_callbacks:
+                self.ui_callbacks["transcript_update"]("Final", text)
 
-            # 2. Agent Execution — use process_input() which is the correct method on FridayAgent
-            response = await self.agent.process_input(text)
+            if "voice_status" in self.ui_callbacks:
+                self.ui_callbacks["voice_status"]("Thinking...")
+            if "live_response_start" in self.ui_callbacks:
+                self.ui_callbacks["live_response_start"]("Friday")
 
-            # 3. Emit text response to UI if callback is registered
+            # 2. Agent Execution
+            def stream_callback(token: str):
+                if "token_ready" in self.ui_callbacks:
+                    self.ui_callbacks["token_ready"](token)
+
+            response = await self.agent.process_input(text, stream_callback=stream_callback)
+
+            # 3. Emit final text response to UI via legacy callback (just for history)
             if self.response_callback and response:
                 await self.response_callback(text, response)
 
             # 4. Text-to-Speech → Speaker
             if response:
+                if "voice_status" in self.ui_callbacks:
+                    self.ui_callbacks["voice_status"]("Speaking...")
                 self.conversation_manager.set_state(SpeechState.SPEAKING)
                 logger.info("[SpeechPipeline] TTS: %r", response[:80])
                 tts_stream = await self.tts.text_to_speech(response)
@@ -147,7 +186,11 @@ class SpeechPipeline:
         except Exception as exc:
             logger.error("[SpeechPipeline] Command handling error: %s", exc, exc_info=True)
             self.conversation_manager.set_state(SpeechState.ERROR)
-            print(f"\n# DEBUG CODE: 098123\n# Error: {exc}")
+            if "voice_status" in self.ui_callbacks:
+                self.ui_callbacks["voice_status"]("Error")
+            if "transcript_update" in self.ui_callbacks:
+                self.ui_callbacks["transcript_update"]("Final", f"⚠️ Error: {exc}")
         finally:
-            if not self.conversation_manager.is_interrupted:
-                self.conversation_manager.set_state(SpeechState.IDLE)
+            self.conversation_manager.set_state(SpeechState.IDLE)
+            if "voice_status" in self.ui_callbacks:
+                self.ui_callbacks["voice_status"]("Ready")

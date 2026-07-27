@@ -15,6 +15,24 @@ Item {
         inputField.forceActiveFocus()
     }
 
+    // ── Helper functions for real-time bubble updates ────────────────────────
+    function updateLastMessage(newText) {
+        if (chatModel.count > 0) {
+            chatModel.setProperty(chatModel.count - 1, "message", newText)
+        }
+    }
+
+    function appendToLastMessage(textChunk) {
+        if (chatModel.count > 0) {
+            var currentText = chatModel.get(chatModel.count - 1).message
+            if (currentText === "Generating...") {
+                chatModel.setProperty(chatModel.count - 1, "message", textChunk)
+            } else {
+                chatModel.setProperty(chatModel.count - 1, "message", currentText + textChunk)
+            }
+        }
+    }
+
     // ── Thinking/status banner ────────────────────────────────────────────
     Rectangle {
         id: statusBanner
@@ -212,6 +230,30 @@ Item {
 
         function onResponseReady(sender, message) {
             chatModel.append({"sender": sender, "message": message})
+        }
+
+        function onVoiceTranscriptUpdate(status, transcript) {
+            if (status === "Listening") {
+                chatModel.append({"sender": "You (voice)", "message": "Listening..."})
+            } else if (status === "Recognizing") {
+                chatView.updateLastMessage("Recognizing...")
+            } else if (status === "Final") {
+                chatView.updateLastMessage(transcript)
+            }
+        }
+
+        function onLiveResponseStart(sender) {
+            chatModel.append({"sender": sender, "message": "Thinking..."})
+        }
+
+        function onTokenReady(token) {
+            if (chatModel.count > 0) {
+                var currentText = chatModel.get(chatModel.count - 1).message
+                if (currentText === "Thinking...") {
+                    chatView.updateLastMessage("Generating...")
+                }
+                chatView.appendToLastMessage(token)
+            }
         }
 
         function onThinkingUpdate(status) {

@@ -20,16 +20,16 @@ class SarvamConfig:
     TRANSLATE_ENDPOINT: str = "/translate"
 
     # Default STT model (saarika = Sarvam's Hindi/English bilingual ASR)
-    DEFAULT_STT_MODEL: str = "saarika:v2"
+    DEFAULT_STT_MODEL: str = "saarika:v2.5"
 
     # Default TTS model (bulbul = Sarvam's multilingual TTS voice model)
-    DEFAULT_TTS_MODEL: str = "bulbul:v1"
+    DEFAULT_TTS_MODEL: str = "bulbul:v3"
 
-    # Default language for STT (BCP-47 tags: hi-IN, en-IN, ta-IN, te-IN, etc.)
-    DEFAULT_LANGUAGE: str = "hi-IN"
+    # Default language for STT and TTS (BCP-47 tags: hi-IN, en-IN, ta-IN, te-IN, etc.)
+    DEFAULT_LANGUAGE: str = "en-IN"
 
     # Default speaker for TTS
-    DEFAULT_TTS_SPEAKER: str = "meera"
+    DEFAULT_TTS_SPEAKER: str = "ritu"
 
     # Default HTTP timeout in seconds
     DEFAULT_TIMEOUT: float = 30.0

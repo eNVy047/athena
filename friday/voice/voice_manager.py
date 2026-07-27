@@ -27,6 +27,17 @@ class VoiceManager:
         logger.info("Stopping Voice System.")
         await self.pipeline.stop()
         
+    async def start_recording(self):
+        """Used in Push-To-Talk to begin buffering."""
+        if not self.pipeline._is_running:
+            self.pipeline.conversation_manager.mode = VoiceMode.PUSH_TO_TALK
+            await self.pipeline.start()
+        self.pipeline.start_ptt_recording()
+
+    async def stop_recording(self):
+        """Used in Push-To-Talk to end buffering and trigger processing."""
+        self.pipeline.stop_ptt_recording()
+        
     def set_wake_word(self, wake_words: list[str]):
         """Configures the active wake words."""
         self.pipeline.wake_word.wake_words = [w.lower() for w in wake_words]

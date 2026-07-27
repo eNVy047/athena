@@ -154,6 +154,12 @@ class DesktopApplication:
                     self.voice_manager.pipeline.response_callback = (
                         self.bridge.on_voice_response
                     )
+                    self.voice_manager.pipeline.ui_callbacks = {
+                        "transcript_update": self.bridge.emit_voice_transcript_update,
+                        "live_response_start": self.bridge.emit_live_response_start,
+                        "token_ready": self.bridge.emit_token_ready,
+                        "voice_status": self.bridge.voiceStatusChanged.emit,
+                    }
                     # Wire voice manager to bridge
                     self.bridge.voice_manager = self.voice_manager
                     self.desktop_state.set_voice_state(VoiceState.IDLE)
