@@ -86,13 +86,17 @@ class SpeechPipeline:
                 self.conversation_manager.mode == VoiceMode.CONTINUOUS
                 and self.conversation_manager.state == SpeechState.IDLE
             ):
-                if self.vad.process_chunk(processed_chunk):
+                is_speech = self.vad.process_chunk(processed_chunk)
+                if is_speech:
                     buffer.extend(processed_chunk)
                 elif len(buffer) > 0:
                     audio_data = bytes(buffer)
                     buffer.clear()
                     try:
                         text = await self.stt.speech_to_text(audio_data)
+                        if text:
+                            print(text.strip())
+                        
                         if text and self.wake_word.detect(text):
                             logger.info("[SpeechPipeline] Wake word detected. Listening...")
                             self.conversation_manager.set_state(SpeechState.LISTENING)
@@ -120,6 +124,12 @@ class SpeechPipeline:
                 self.conversation_manager.set_state(SpeechState.IDLE)
                 return
 
+            print(text.strip())
+            
+            # Skip everything else for STT testing
+            self.conversation_manager.set_state(SpeechState.IDLE)
+            return
+
             # 2. Agent Execution — use process_input() which is the correct method on FridayAgent
             response = await self.agent.process_input(text)
 
@@ -137,6 +147,7 @@ class SpeechPipeline:
         except Exception as exc:
             logger.error("[SpeechPipeline] Command handling error: %s", exc, exc_info=True)
             self.conversation_manager.set_state(SpeechState.ERROR)
+            print(f"\n# DEBUG CODE: 098123\n# Error: {exc}")
         finally:
             if not self.conversation_manager.is_interrupted:
                 self.conversation_manager.set_state(SpeechState.IDLE)

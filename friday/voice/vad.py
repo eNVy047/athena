@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class VoiceActivityDetector:
     """Detects presence of speech in an audio stream using RMS energy as a simple heuristic."""
     
-    def __init__(self, energy_threshold: float = 300.0, silence_timeout_s: float = 1.5):
+    def __init__(self, energy_threshold: float = 50.0, silence_timeout_s: float = 1.5):
         self.energy_threshold = energy_threshold
         self.silence_timeout_s = silence_timeout_s
         self.is_speaking = False

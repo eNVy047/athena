@@ -118,6 +118,7 @@ class SarvamSttProvider(SttProvider):
                 success=False, latency_ms=latency_ms, error_msg=str(exc)
             )
             logger.error("[SarvamSTT] Transcription failed: %s", exc)
+            print(f"\n# DEBUG CODE: 098123\n# Error (Sarvam): {exc}")
             raise
         except Exception as exc:
             latency_ms = (time.time() - start_time) * 1000
@@ -125,4 +126,5 @@ class SarvamSttProvider(SttProvider):
                 success=False, latency_ms=latency_ms, error_msg=str(exc)
             )
             logger.error("[SarvamSTT] Unexpected error during transcription: %s", exc)
+            print(f"\n# DEBUG CODE: 098123\n# Error (Unexpected): {exc}")
             raise

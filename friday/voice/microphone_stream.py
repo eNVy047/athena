@@ -67,6 +67,7 @@ class MicrophoneStream:
             callback=self._audio_callback,
         )
         self._stream.start()
+        
         logger.info(
             "[MicrophoneStream] Started at %dHz, %dch, chunk=%d",
             self.sample_rate, self.channels, self.chunk_size,
